@@ -1,6 +1,6 @@
 # Simple publish subscribe
 
-This program is a simple publish-subscribe. It is made of 2 publisher, 3 subscriber and one mediator.
+This program is a simple publish-subscribe. It is made of 2 publishers, 3 subscribers and one mediator.
 
 ##Setup
 

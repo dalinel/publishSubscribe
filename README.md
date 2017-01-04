@@ -31,3 +31,5 @@ publisher 2 send upper case char
 Lower case and upper case char are stored in the same circular buffer in the mediator.
 There is one circular buffer per subscriber.
 
+A log is available in the file LOGFILE.log
+

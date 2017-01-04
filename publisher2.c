@@ -11,11 +11,25 @@
 void sig_handler(int signo)
 {
   if (signo == SIGINT)
-    printf("publisher2 Received SIGTERM\n");
+    printf("publisher2 Received SIGINT\n");
     _exit(0);
 }
-
+void Log(char *message)
+{
+    FILE * file;
+	file = fopen("LOGFILE.log", "a");//to append to the log after init
+    if(file==NULL){
+        printf("ERROR CANNOT OPEN LOG");
+    }
+    else{
+    	fputs(message, file);
+        fflush(file);
+    	fclose(file);//close and open the file at each call
+	}
+}
 int main(int argc, char *argv[]){
+    char * message;
+    message=malloc(50*sizeof(char));
     struct timespec t;//Used in nanosleep
     t.tv_sec = 5;
     t.tv_nsec = 0;
@@ -41,6 +55,8 @@ int main(int argc, char *argv[]){
         write(fd[1], &randomletter, sizeof(char));
         printf("publisher2 has sent the char : %c\n", randomletter);
         fflush(stdout);
+        sprintf(message,"publisher2 has sent the char : %c\n", randomletter);
+        Log(message);
         signal(SIGINT, sig_handler);//Enable publisher2 to catch and handle SIGTERM
         nanosleep(&t, NULL);
 

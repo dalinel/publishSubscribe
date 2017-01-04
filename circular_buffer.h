@@ -1,6 +1,6 @@
 
-#ifndef H_GL_CIRCBUFF2
-#define H_GL_CIRCBUFF2
+#ifndef H_GL_CIRCBUFF
+#define H_GL_CIRCBUFF
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>

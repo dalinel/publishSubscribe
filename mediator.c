@@ -6,11 +6,10 @@
 #include <sys/time.h>
 #include <time.h>
 #include "circular_buffer.h"
-
 #define pipe_number 8
-
+char * message;
 circular_buffer c_s[3]; //3 circular buffer, one for each subscriber
-//Prevents blockind if one subscriber is very slow
+//Prevents blocking if one subscriber is very slow
 
 //Sig handler for SIGINT
 void sig_handler(int signo)
@@ -18,6 +17,7 @@ void sig_handler(int signo)
   if (signo == SIGINT)
     printf("mediator Received SIGINT\n");
     fflush(stdout);
+    free(message);
     circular_buffer_free(&c_s[0]);
     circular_buffer_free(&c_s[1]);
     circular_buffer_free(&c_s[2]);
@@ -25,6 +25,7 @@ void sig_handler(int signo)
 }
 
 //Shuffle an array, will be use to not read the pipes in a deterministic order
+//The size the array to shuffle is n
 void shuffle(int *array, size_t n) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -33,7 +34,7 @@ void shuffle(int *array, size_t n) {
     if (n > 1) {
         size_t i;
         for (i = n - 1; i > 0; i--) {
-            size_t j = (unsigned int) (drand48()*(i+1));
+            size_t j = (unsigned int) (drand48()*(i+1));//random index pointing to the data to shuffle
             int t = array[j];
             array[j] = array[i];
             array[i] = t;
@@ -41,23 +42,49 @@ void shuffle(int *array, size_t n) {
     }
 }
 
+void Log(char *message)
+{
+    FILE * file;
+	file = fopen("LOGFILE.log", "a");//to append to the log after init
+    if(file==NULL){
+        printf("ERROR CANNOT OPEN LOG");
+    }
+    else{
+    	fputs(message, file);
+        fflush(file);
+    	fclose(file);//close and open the file at each call
+	}
+}
+
 int main(int argc, char *argv[]){
+    int buffer_error = 0;
+    int j=0;
+    int i=0;
+    int k=0;
+    int h=0;
+
+
+    message=malloc(100*sizeof(char));
+
     struct timespec t;//Used in nanosleep
     t.tv_sec = 1;//Will sleep for one second
     t.tv_nsec = 0;
 
-    circular_buffer_init(&c_s[0],50);
-    circular_buffer_init(&c_s[1],50);
-    circular_buffer_init(&c_s[2],50);
+    for(i=0;i<3;i++){
+        buffer_error = circular_buffer_init(&c_s[i],50);
+        if(buffer_error != 0){
+            printf("TRYING TO INIT BUFFER ANOTHER TIME\n");
+            fflush(stdout);
+            Log("TRYING TO INIT BUFFER ANOTHER TIME\n");
+            buffer_error = circular_buffer_init(&c_s[i],50);
+        }
+    }
 
     int pipe_array[8]={0,1,2,3,4,5,6,7};
     int i_shuffle = 0;
 
     char *ptr;
     int fd[pipe_number][2];
-
-    int j=0;
-    int i=0;
 
     //convert char fd to int fd
     for(i=0;i<pipe_number;i++){
@@ -88,8 +115,7 @@ int main(int argc, char *argv[]){
     fd_set read_set,read_set_copy;
 
     for(;;){
-        signal(SIGINT, sig_handler);//handle signal
-        FD_ZERO(&read_set);//nitializes the file descriptor set of pipes to read to have zero bits for all file descriptors.
+        FD_ZERO(&read_set);//initializes the file descriptor set of pipes to read to have zero bits for all file descriptors.
         for (i=0; i < pipe_number ; ++i)
         {
             if(i!=3 && i!=5 && i!=7){
@@ -106,19 +132,34 @@ int main(int argc, char *argv[]){
                 if (FD_ISSET(fd[i_shuffle][0], &read_set_copy)){//Check if the fd was the one belonging to the ready pipe
                     if(i_shuffle==0 || i_shuffle==1){//If the pipe is the pipe from one of the publishers
                         read(fd[i_shuffle][0],&char_received,sizeof(char_received));//read the char sent
-                        write_buff(&c_s[0], char_received);//copy it in the three buffers
-                        write_buff(&c_s[1], char_received);
-                        write_buff(&c_s[2], char_received);
-
+                        h=0;
+                        for(k=0; k<3; k++){
+                            buffer_error= write_buff(&c_s[k], char_received);//copy it in the three buffers
+                            if(buffer_error != 0){
+                                h++;
+                                printf("BUFFER IS FULL CANNOT WRITE ITEM %c IN THE BUFFER\n", char_received);
+                                fflush(stdout);
+                                sprintf(message, "BUFFER IS FULL CANNOT WRITE ITEM %c IN THE BUFFER\n", char_received);
+                                Log("TRYING TO INIT BUFFER ANOTHER TIME\n");
+                            }
+                        }
                     }
                     else{
                         read(fd[i_shuffle][0],&int_received,sizeof(int_received));//Read the request int from the subscriber
-                        read_buff(&c_s[(i_shuffle/2)-1], &char_to_send);//read the buffer corresponding to the subscriber
+                        buffer_error=read_buff(&c_s[(i_shuffle/2)-1], &char_to_send);//read the buffer corresponding to the subscriber
+                        if(buffer_error != 0){
+                            printf("BUFFER IS STILL EMPTY SUBSCRIBER %d CANNOT READ ANYTHING YET\n", (i_shuffle/2));
+                            fflush(stdout);
+                            sprintf(message,"BUFFER IS STILL EMPTY SUBSCRIBER %d CANNOT READ ANYTHING YET\n", (i_shuffle/2));
+                            Log(message);
+                            char_to_send=' ';
+                        }
                         write(fd[i_shuffle+1][1], &char_to_send ,sizeof(char_to_send));//send the char to the subscriber
                     }
                 }
             }
         }
+        signal(SIGINT, sig_handler);//handle signal
         nanosleep(&t, NULL);//sleep
     }
 

@@ -15,7 +15,24 @@ void sig_handler(int signo)
     _exit(0);
 }
 
+void Log(char *message)
+{
+    FILE * file;
+	file = fopen("LOGFILE.log", "a");//to append to the log after init
+    if(file==NULL){
+        printf("ERROR CANNOT OPEN LOG");
+    }
+    else{
+    	fputs(message, file);
+        fflush(file);
+    	fclose(file);//close and open the file at each call
+	}
+}
+
+
 int main(int argc, char *argv[]){
+    char * message;
+    message=malloc(50*sizeof(char));
     struct timespec t;//Used in nanosleep
     t.tv_sec = 3;//Will sleep for 3 seconds
     t.tv_nsec = 0;
@@ -41,6 +58,8 @@ int main(int argc, char *argv[]){
         write(fd[1], &randomletter, sizeof(char));
         printf("publisher1 has sent the char : %c\n", randomletter);
         fflush(stdout);
+        sprintf(message,"publisher1 has sent the char : %c\n", randomletter);
+        Log(message);
         signal(SIGINT, sig_handler);//Enable publisher 1 to catch and handle SIGINT
         nanosleep(&t, NULL);
     }

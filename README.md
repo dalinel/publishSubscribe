@@ -2,16 +2,16 @@
 
 This program is a simple publish-subscribe. It is made of 2 publishers, 3 subscribers and one mediator.
 
-##Setup
+## Setup
 
-###How to run it ?
+### How to run it ?
 
 	*cd "path to the publish_subscribe dir"
 	*make
 	*./main
 
 	
-###How to stop it ?
+### How to stop it ?
 
 	*ctrl + c
 
